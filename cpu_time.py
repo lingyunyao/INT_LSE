@@ -129,7 +129,7 @@ fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
 
 # Float32 plot
 ax1.barh(y_pos_float, float_aligned, color='skyblue')
-ax1.set_title("Float32 Step Timings")
+ax1.set_title("Float32 logsumexp Step Timings")
 ax1.set_xlim(0, x_max)
 ax1.set_yticks(y_pos_float)
 ax1.set_yticklabels(float_steps)
@@ -140,7 +140,7 @@ for i, v in enumerate(float_aligned):
 
 # Int32 plot
 ax2.barh(y_pos_int, int_aligned, color='lightgreen')
-ax2.set_title("Int32 Step Timings")
+ax2.set_title("our Int32 logsumexp Step Timings")
 ax2.set_xlim(0, x_max)
 ax2.set_yticks(y_pos_int)
 ax2.set_yticklabels(int_steps)
@@ -151,7 +151,7 @@ for i, v in enumerate(int_aligned):
     ax2.text(v + x_max * 0.01, i, f"{v:.3f} ms", va='center')
 
 # Final layout
-plt.suptitle("CPU Step-wise Timing Comparison: Float32 vs Int32", fontsize=14)
+plt.suptitle("CPU Step-wise Timing Comparison: Float32 logsumexp vs our Int32 logsumexp", fontsize=14)
 plt.tight_layout(rect=[0, 0, 1, 0.95])
 plt.savefig('cpu_timings.png', dpi=300)
 
