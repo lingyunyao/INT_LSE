@@ -18,7 +18,7 @@ def measure_op_cuda(op, runs=1):
         op()
     end.record()
     torch.cuda.synchronize()
-    return start.elapsed_time(end) / runs  # ms
+    return start.elapsed_time(end)   # ms
 
 # GPU warm-up
 def warm_up_gpu(x, y, rounds=10):
@@ -36,19 +36,18 @@ def logsumexp_shape_preserving_gpu(x, y):
     max_xy = torch.maximum(x, y)
     timings['min'] = measure_op_cuda(lambda: torch.minimum(x, y))
     min_xy = torch.minimum(x, y)
-    timings['sub'] = measure_op_cuda(lambda: min_xy - max_xy)
-    sub = min_xy - max_xy
+    timings['sub'] = measure_op_cuda(lambda: torch.sub(min_xy, max_xy))
+    sub = torch.sub(min_xy, max_xy)
     timings['exp'] = measure_op_cuda(lambda: torch.exp(sub))
     exp_sub = torch.exp(sub)
-    timings['sum'] = measure_op_cuda(lambda: exp_sub + 1.0)
-    sum_exp = exp_sub + 1.0
+    timings['sum'] = measure_op_cuda(lambda: torch.add(exp_sub, 1.0))
+    sum_exp = torch.add(exp_sub, 1.0)
     timings['log'] = measure_op_cuda(lambda: torch.log(sum_exp))
     log_sum = torch.log(sum_exp)
-    timings['add'] = measure_op_cuda(lambda: max_xy + log_sum)
-    timings['total'] = (
-        timings['max'] + timings['min'] + timings['sub'] +timings['exp'] + timings['sum'] + timings['log'] + timings['add']
-    )
-    return max_xy + log_sum, timings
+    timings['add'] = measure_op_cuda(lambda: torch.add(max_xy, log_sum))
+    result=torch.add(max_xy, log_sum)
+    timings['total'] = timings['max'] + timings['min'] + timings['sub'] + timings['exp'] + timings['sum'] + timings['log'] + timings['add']
+    return result, timings
 
 # Integer LogSumExp approximation (GPU)
 def lse_pe_int_gpu(x: torch.Tensor, y: torch.Tensor):
@@ -57,9 +56,9 @@ def lse_pe_int_gpu(x: torch.Tensor, y: torch.Tensor):
     x_max = torch.maximum(x, y)
     timings['min'] = measure_op_cuda(lambda: torch.minimum(x, y))
     y_min = torch.minimum(x, y)
-    timings['sub'] = measure_op_cuda(lambda: y_min - x_max)
-    sub = y_min - x_max
-    timings['bit_com'] = measure_op_cuda(lambda: (sub >> FRAC_BITS, sub & FRAC_MASK))
+    timings['sub'] = measure_op_cuda(lambda:  torch.sub(y_min, x_max))
+    sub =  torch.sub(y_min, x_max)
+    timings['bit_op'] = measure_op_cuda(lambda: (sub >> FRAC_BITS, sub & FRAC_MASK))
     I = (sub >> FRAC_BITS).clamp(min=-31, max=0)
     F = sub & FRAC_MASK
     timings['approx'] = measure_op_cuda(lambda: (SCALE + F) >> (-I))
@@ -68,20 +67,20 @@ def lse_pe_int_gpu(x: torch.Tensor, y: torch.Tensor):
     approx = one_plus_F >> shift_amount
     timings['clut'] = measure_op_cuda(lambda: torch.zeros_like(approx))  # placeholder
     correction = torch.zeros_like(approx)
-    timings['add'] = measure_op_cuda(lambda: x_max + approx + correction)
+    timings['add'] = measure_op_cuda(lambda: torch.add(x_max , torch.add(approx , correction)))
+    result=torch.add(x_max , torch.add(approx , correction))
     timings['total'] = (
-        timings['max'] + timings['min'] + timings['sub'] + timings['bit_com'] + timings['approx'] + timings['clut'] + timings['add']
+        timings['max'] + timings['min'] + timings['sub'] + timings['bit_op'] + timings['approx'] + timings['clut'] + timings['add']
     )
-    return x_max + approx + correction, timings
+    return result, timings
 
 trials = 10
 # Lists to store timing data
 float_timings_record = {k: [] for k in ['max', 'min', 'sub', 'exp', 'sum', 'log', 'add', 'total']}
-int_timings_record = {k: [] for k in ['max', 'min', 'sub', 'bit_com', 'approx', 'clut', 'add', 'total']}
+int_timings_record = {k: [] for k in ['max', 'min', 'sub', 'bit_op', 'approx', 'clut', 'add', 'total']}
 # Run trials
 for _ in range(trials):
-    start = torch.cuda.Event(enable_timing=True)
-    end = torch.cuda.Event(enable_timing=True)
+
     # Warm-up
     # Generate random inputs
     xf = torch.rand(1, dtype=torch.float32)
