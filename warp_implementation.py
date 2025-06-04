@@ -105,18 +105,23 @@ for _ in range(trials):
         result_float = logsumexp_shape_preserving_cpu(xf, yf)
         elapsed_time_float.append((time.time() - start_time) * 1000)
 
-    elif func == 'warp':
+   elif func == 'warp':
         xi = torch.randint(0, 2**31, (data_size,), dtype=torch.int32).numpy()
         yi = torch.randint(0, 2**31, (data_size,), dtype=torch.int32).numpy()
+
+        start_time = wp.Event(enable_timing=True)
+        end_time = wp.Event(enable_timing=True)
 
         x_wp = wp.array(xi, dtype=wp.int32, device="cuda")
         y_wp = wp.array(yi, dtype=wp.int32, device="cuda")
         out_wp = wp.empty_like(x_wp)
 
-        start_time = time.time()
+        #start_time = time.time()
+        wp.record_event(start_time)
         wp.launch(kernel=lse_warp_kernel, dim=data_size, inputs=[x_wp, y_wp, lookup_table_wp, out_wp])
+        wp.record_event(end_time)
         wp.synchronize()
-        elapsed_time_warp.append((time.time() - start_time) * 1000)
+        elapsed_time_warp.append(wp.get_event_elapsed_time(start_time, end_time))
 
 # Discard warm-up run
 elapsed_time_float = elapsed_time_float[1:]
